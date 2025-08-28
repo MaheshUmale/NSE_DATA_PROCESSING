@@ -1,0 +1,304 @@
+
+
+from tvDatafeed import TvDatafeed,Interval
+import pandas as pd
+
+import backtrader as bt
+import pandas as pd
+import matplotlib.pyplot as plt 
+
+
+class PandasData_PE(bt.feeds.PandasData):
+    lines = ('Condition1','Condition2')
+    params = (('Condition1', -1),('Condition2',-1))
+
+
+
+class TestStrategy(bt.Strategy):
+    params = (('period', 20),)
+    
+    # def log(self, txt, dt=None):
+    #     dt = dt or self.data.datetime.datetime(0)
+    #     print('%s, %s' % (dt.isoformat(), txt))
+
+
+    # def __init__(self):
+    def __init__(self, sizer):
+        self.sizer = sizer  # Store the sizer instance
+
+        self.sma = bt.indicators.SMA(self.data.close, period=self.p.period)
+        self.close = self.datas[0].close
+        self.open = self.datas[0].open
+        self.Condition1 = self.datas[0].Condition1
+        self.Condition2 = self.datas[0].Condition2
+        self.trades = []  # Keep track of trades
+        self.trades_printed = set()  # Track which trades have been printed
+
+    
+    # def notify_trade(self, trade):
+    #     if trade not in self.trades_printed:
+    #         self.log(f'TRADE: {trade} - Size: {trade.size}, Price: {trade.price}, Value: {trade.value}, Commission: {trade.commission}')
+    #         self.trades_printed.add(trade)
+
+    # def notify_order(self, order):
+    #     if order.status == order.Submitted:
+    #         self.log('Order Submitted')
+    #     if order.status == order.Accepted:
+    #         self.log('Order Accepted')
+    #     if order.status == order.Completed:
+    #         if order.isbuy():
+    #             self.log('BUY:  Executed at %.2f' % order.executed.price)
+    #         elif order.issell():
+    #             self.log('SELL: Executed at %.2f' % order.executed.price)
+    #     elif order.status == order.Rejected:
+    #         self.log('Order Rejected')
+    #     elif order.status == order.Cancelled:
+    #         self.log('Order Cancelled')
+    # def notify_order(self, order):
+    #     if not order.status == order.Completed:
+    #         return  # discard any other notification
+
+    #     if not self.position:  # we left the market
+    #         print('SELL@price: {:.2f}'.format(order.executed.price))
+    #         return
+
+    #     # We have entered the market
+    #     print('BUY @price: {:.2f}'.format(order.executed.price))
+    #     return
+
+        # if not self.p.trail:
+        #     stop_price = order.executed.price * (1.0 - self.p.stop_loss)
+        #     self.sell(exectype=bt.Order.Stop, price=stop_price)
+        # else:
+        #     self.sell(exectype=bt.Order.StopTrail, trailamount=self.p.trail)
+
+            
+    def prenext(self):
+        # Called before the indicator has enough data
+        pass
+    
+    def next(self):
+        # # Called when enough data is available
+        # if self.position:
+                
+        #         
+        #         self.close(size=possize)
+        # Get the current position
+        if  self.position and  (self.sma[-1] > self.data.close[0]):
+            possize = self.getposition().size
+            # print(possize)
+            if(possize > 0) :
+                self.sell(size=possize)
+
+        if  self.position and  (self.sma[-1] < self.data.close[0]):
+            possize = self.getposition().size
+            # print(possize)
+            if(possize < 0) :
+                self.buy(size=possize)
+
+        if( self.sma[0] < self.data.close[0]) and ((self.Condition1 or self.Condition2) and (self.close>self.open)):
+            self.buy()
+
+        if( self.sma[0] > self.data.close[0]) and ((self.Condition1 or self.Condition2) and (self.close<self.open)):
+            self.sell()
+        # if not self.position :
+        #     if( self.sma[0] < self.data.close[0]) and ((self.Condition1 or self.Condition2) and (self.close>self.open)):
+        #         # Your trading logic here 
+                
+                # self.buy()  # Buy when SMA crosses above the price
+                #     # self.buy()
+
+
+
+
+# class MyStrategy(bt.Strategy):
+#     params = (('period', 20),)
+
+#     def __init__(self):
+#         self.sma = bt.indicators.SMA(self.data.close, period=self.p.period)
+
+#     def prenext(self):
+#         # Called before the indicator has enough data
+#         pass
+
+#     def next(self):
+#         # Called when enough data is available
+     
+#         # Your trading logic here
+#         if ( self.sma[0] > self.data.close[0]):
+                
+#                 print("buy")
+#                 self.buy() 
+#         elif self.position and self.sma[0] < self.data.close[0]:
+
+#             self.sell()
+#         # if not self.position: # if not already in the market
+#         #      # Buy when SMA crosses above the price
+#         #     # self.buy()
+#         # 
+        # pass
+
+
+#####################################################################################3
+            
+
+ 
+length =48
+def check_conditions(df):  
+        
+    # Calculate average volume and standard deviation for the last 48 periods
+    avg_vol = df['Volume'].rolling(window=48).mean()
+    std_dev = df['Volume'].rolling(window=48).std()
+
+    # Check conditions
+    condition1 = df['Volume'] > (avg_vol + 4 * std_dev)
+    condition2 = df['Volume'].rolling(window=2).mean() > (avg_vol + 4 * std_dev)
+
+    # Results
+    df['Condition1'] = condition1
+    df['Condition2'] = condition2
+
+    support_line   =  0.0
+    resistance_line = 0.0
+    for index, row in df.iterrows():
+        
+        # print(row)
+        if (row.Condition1 or row.Condition2 ):    
+            support_line   =  (row['Low']) if row['Close'] > row['Open'] else support_line
+            resistance_line =  (row['High']) if row['Close'] < row['Open'] else resistance_line
+            # print(f"Alert for {index}: Support Line: {support_line}, Resistance Line: {resistance_line}")
+
+
+
+
+
+tv = TvDatafeed()
+gapperlist =[ 'IEX']#   ,'SBILIFE' ,'PATELENG','MPHASIS','ELECON','ELECTCAST','LODHA','ADANIENSOL','TITAGARH','INOXWIND','PERSISTENT','RBLBANK','MAXHEALTH','SWSOLAR','JMFINANCIL','SENCO','STLTECH','CGCL','FIEMIND','KAMOPAINTS','HEXT','LINCOLN','SETUINFRA','AVANTIFEED','VASCONEQ','NGLFINE','AKZOINDIA','CHOICEIN','MAFANG','AUSOMENT','YAARI','MASPTOP50','LEXUS']
+startingCASH = 100000.00
+for symbol in gapperlist:
+    try :
+        nifty_data=tv.get_hist(symbol,'NSE',interval=Interval.in_1_minute,n_bars=300)
+
+        df = nifty_data.copy()
+        df.index = pd.to_datetime(df.index)
+        df = df.rename(columns={'open': 'Open', 'high': 'High','low': 'Low', 'close': 'Close','volume': 'Volume', 'high': 'High', })
+        check_conditions(df)
+        # print("DONE")
+        # print(df.head())
+        df = df.tail(250)
+        
+
+        
+        cerebro = bt.Cerebro()
+        # data = bt.feeds.PandasData(dataname=df.tail(200))
+        # Create PandasData instance, specifying the Volume column
+
+
+        df['datetime'] = pd.to_datetime(df.index)
+        df.set_index('datetime', inplace=True)
+        df.index = pd.to_datetime(df.index)
+
+        data_feed =  PandasData_PE(dataname=df,
+                                        datetime=-1,  # Datetime index =-1 (0 for the first column)
+                                        open=1,      # Open price (1st column)
+                                        high=2,      # High price (2nd column)
+                                        low=3,       # Low price (3rd column)
+                                        close=4,     # Close price (4th column)
+                                        volume=5,
+                                        openinterest=-1, # Not using openinterest
+                                        
+                                        # Map custom columns
+                                        Condition1=6, # Map 'CustomColumn1'
+                                        Condition2=7  # Map 'CustomColumn2'
+                                        )    # Volume (5th column)
+
+
+        # print(data)
+
+        # Set the symbol name (optional)
+        data_feed._name = symbol   
+
+        # Add data to Cerebro with a custom name
+        cerebro.adddata(data_feed, name=symbol)
+        
+        from backtrader.sizers import PercentSizer
+        sizer = PercentSizer(percents=20) 
+        cerebro.addstrategy(TestStrategy , sizer=sizer)
+        
+        cerebro.broker.setcash(startingCASH)
+        
+        # cerebro.broker.setcommission(commission=0.002)
+        # print(symbol+' :Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
+
+
+        # cerebro.addsizer(bt.sizer.Sizer._getsizing, percent=30.2) # 2% of available capital per trade
+        # # Add Analyzers (for post-run analysis)
+        cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trade_analyzer")
+        cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe_ratio")
+        cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
+        # # 
+        # # plt.show()
+        # cerebro.plot(iplot=True,style='candlestick')
+        # plt.show() 
+        ###############################################
+
+        # # import the package after installation
+        # from backtrader_plotly.plotter import BacktraderPlotly
+        # from backtrader_plotly.scheme import PlotScheme
+        # import plotly.io
+
+
+        # # define plot scheme with new additional scheme arguments
+        # scheme = PlotScheme(decimal_places=2, max_legend_text_width=16)
+
+        # figs = cerebro.plot(BacktraderPlotly(show=False, scheme=scheme))
+
+        # # directly manipulate object using methods provided by `plotly`
+        # for i, each_run in enumerate(figs):
+        #     for j, each_strategy_fig in enumerate(each_run):
+        #         # open plot in browser
+        #         each_strategy_fig.show()
+
+        #         # save the html of the plot to a variable
+        #         html = plotly.io.to_html(each_strategy_fig, full_html=False)
+
+        #         # write html to disk
+        #         plotly.io.write_html(each_strategy_fig, f'{i}_{j}.html', full_html=True)
+
+        ###########################################################3
+        # from backtrader_plotting import Bokeh
+        # from backtrader_plotting.schemes import Tradimo
+
+        # # <your backtrader code>
+        # plotconfig = {
+        #     'id:ind#0': dict(
+        #         subplot=True,
+        #     ),
+        # }
+        # b = Bokeh(style='bar', plot_mode='single', scheme=Tradimo(), plotconfig=plotconfig)
+        # cerebro.plot(b)
+        ####################################################################333
+        from btplotting import BacktraderPlottingLive
+        from btplotting import BacktraderPlotting
+        cerebro.addanalyzer(BacktraderPlottingLive)
+        cerebro.run()
+
+        # cerebro.plot(iplot=True,style='candlestick')
+        # p = BacktraderPlotting(style='bar')
+        # cerebro.plot(p)
+        p = BacktraderPlotting(style='bar', multiple_tabs=False)
+        cerebro.plot(p)
+
+        endValue  = cerebro.broker.getvalue()
+        returnVal = ((endValue-startingCASH)/startingCASH)*100
+        print(f'{symbol} :starting : {startingCASH:.2f} : ENDING : {endValue:.2f} :%Return  : {returnVal:.2f}')
+        
+        # from btplotting import BacktraderPlotting
+        # from btplotting.schemes import Tradimo
+
+        startingCASH =endValue
+        # p = BacktraderPlotting(style='bar', scheme=Tradimo())
+        # cerebro.plot(p)
+    except Exception as e:
+        print("Caught a general exception:", e)
+        pass

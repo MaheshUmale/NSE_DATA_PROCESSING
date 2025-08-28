@@ -1,0 +1,12 @@
+-- database: ./NSE_TV_Interval.in_5_minute_DATA.sqlite.db
+
+SELECT * FROM PFC  WHERE rvol_Candle > 2 and PFC.Date ="2025-04-25";
+
+-- database: /path/to/database.db
+        
+ SELECT name as tbl_name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';
+
+
+--SELECT "UPDATE "" || name || ' SET symbol = \'' || tbl_name || '\';' FROM sqlite_master WHERE type='table';
+
+SELECT  name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';

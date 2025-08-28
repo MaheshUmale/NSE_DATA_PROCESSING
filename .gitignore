@@ -1,0 +1,8 @@
+.venv/
+.venv/
+*.csv
+*.pkl
+*.db
+*.sqlite
+*.pt
+*.zip
